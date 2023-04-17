@@ -642,26 +642,94 @@ function drawEditor() {
         .unbind()
         .on("keyup", function() {
             // save any changes 
-            halfway = $(this).parent().outerHeight() / 2;
-            caret = parseInt(getCPos());
-            if (caret > halfway) {
-                fix = caret - halfway;
-                $(this).parent().scrollTop($(this).parent().scrollTop() + fix);
-            }
-            CURRENTNODE.data.lastPos = $(this).parent().scrollTop() + caret;
-            // console.log("POsition",CURRENTNODE.data.lastPos)
+            scrollToHalf();
+            
+            CURRENTNODE.data.lastPos = getCaretPosAbsolute();
+
             dosave();
         });
 
 
-    // this is flakey :/
+    // this is flakey :/ -- should work now :)
     // console.log("scrolling To", CURRENTNODE.data.lastPos )
     if (CURRENTNODE.data.lastPos > 0) {
-        // $("#editpane").scrollTop(CURRENTNODE.data.lastPos  -300)
+        setCaretToLastPos();
+        scrollToHalf();
     }
+}
 
+function scrollToHalf() {
+    halfway = $("#nodeText").parent().outerHeight() / 2;
+    caret = parseInt(getCPos());
+    
+    if (caret > halfway) {
+        fix = caret - halfway;
+        $("#nodeText").parent().scrollTop($("#nodeText").parent().scrollTop() + fix);
+    }
+}
 
+function setCaretToLastPos() {
+    let nodeTextEl = document.getElementById("nodeText");
 
+    if (CURRENTNODE.data.lastPos > nodeTextEl.innerText.length){
+        return;
+    }
+    let caretIndexInCurrentNode = CURRENTNODE.data.lastPos;
+    let childNodeIndex = -1;
+
+    // normalize this and all sub-nodes to get rid of any potential node weirdness
+    nodeTextEl.normalize();
+    //console.log(nodeTextEl);
+
+    // iterate over sub-nodes until we find the one that contains the caret position
+    for (const childNode of nodeTextEl.childNodes) {
+        childNodeIndex = childNodeIndex + 1;
+
+        // skip if it's a TextNode, we need a <p> node here
+        if (childNode.nodeType === 3) {
+            continue;
+        }
+
+        // caret position is not found inside this node, so we keep looking
+        if (caretIndexInCurrentNode > childNode.innerText.length) {
+            // this is to get from the absolute caret position we saved previously to the caret position relative to the containing <p> node
+            caretIndexInCurrentNode = caretIndexInCurrentNode - (childNode.innerText.length + 2);
+        }
+        // set the caret to the calculated position inside this node
+        else {
+            // if this doesn't contain the TextNode or if the caret position doesn't fit inside the text length something went wrong and we do nothing
+            if (childNode.childNodes[0].nodeType !== 3 || childNode.childNodes[0].nodeValue.length < caretIndexInCurrentNode) {
+                return;
+            }
+            let selectedText = window.getSelection();
+            let newRange = document.createRange();
+
+            newRange.selectNode(childNode);
+            newRange.setStart(childNode.childNodes[0], caretIndexInCurrentNode);
+            newRange.collapse(true);
+
+            selectedText.removeAllRanges();
+            selectedText.addRange(newRange);
+            nodeTextEl.focus();
+            return;
+        }
+    }
+}
+
+//gets the caret position as amount of characters in #nodeText
+function getCaretPosAbsolute() {
+    let _range = document.getSelection().getRangeAt(0);
+    let range = _range.cloneRange();
+    let caretPosition = null;
+
+    if (range.collapsed) {
+        const tempnode = document.createTextNode("\0");
+        range.insertNode(tempnode);
+        caretPosition = document.getElementById("nodeText").innerText.indexOf("\0");
+        tempnode.parentNode.removeChild(tempnode);
+    }
+    //console.log(caretPosition);
+    return caretPosition;
 }
 
 function dosave() {
