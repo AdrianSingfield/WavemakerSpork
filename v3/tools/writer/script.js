@@ -645,6 +645,7 @@ function drawEditor() {
             scrollToHalf();
             
             CURRENTNODE.data.lastPos = getCaretPosAbsolute();
+            //console.log("current caret pos = " + CURRENTNODE.data.lastPos);
 
             dosave();
         });
@@ -671,9 +672,18 @@ function scrollToHalf() {
 function setCaretToLastPos() {
     let nodeTextEl = document.getElementById("nodeText");
 
+    // console.log("--------------------------------\n called setCaretToLastPos()\n" +
+    //             "CURRENTNODE.data.lastPos = " + CURRENTNODE.data.lastPos,
+    //             "nodeTextEl.innerText.length = " + nodeTextEl.innerText.length,
+    //             "#nodeText:", nodeTextEl,
+    //             "-------------------------------");
+
     if (CURRENTNODE.data.lastPos > nodeTextEl.innerText.length){
+        const lastNodeIndex = nodeTextEl.childNodes.length - 1;
+        caretMagic(nodeTextEl.childNodes[lastNodeIndex], nodeTextEl.childNodes[lastNodeIndex].innerText.length);
         return;
     }
+
     let caretIndexInCurrentNode = CURRENTNODE.data.lastPos;
     let childNodeIndex = -1;
 
@@ -682,7 +692,7 @@ function setCaretToLastPos() {
     //console.log(nodeTextEl);
 
     // iterate over sub-nodes until we find the one that contains the caret position
-    for (const childNode of nodeTextEl.childNodes) {
+    for (let childNode of nodeTextEl.childNodes) {
         childNodeIndex = childNodeIndex + 1;
 
         // skip if it's a TextNode, we need a <p> node here
@@ -691,29 +701,37 @@ function setCaretToLastPos() {
         }
 
         // caret position is not found inside this node, so we keep looking
-        if (caretIndexInCurrentNode > childNode.innerText.length) {
+        if (caretIndexInCurrentNode >= childNode.innerText.length) {
             // this is to get from the absolute caret position we saved previously to the caret position relative to the containing <p> node
             caretIndexInCurrentNode = caretIndexInCurrentNode - (childNode.innerText.length + 2);
         }
         // set the caret to the calculated position inside this node
         else {
-            // if this doesn't contain the TextNode or if the caret position doesn't fit inside the text length something went wrong and we do nothing
-            if (childNode.childNodes[0].nodeType !== 3 || childNode.childNodes[0].nodeValue.length < caretIndexInCurrentNode) {
-                return;
+            //if the paragraph ends with a space or newline character weird things happen and we get a negative caretIndex
+            //in that case we've already gone a <p> node too far and need to go back to the previous node
+            if (caretIndexInCurrentNode < 0) {
+                childNode = nodeTextEl.childNodes[childNodeIndex - 2]; //-2 because of the empty text nodes in-between
+                caretIndexInCurrentNode = childNode.innerText.length;
             }
-            let selectedText = window.getSelection();
-            let newRange = document.createRange();
 
-            newRange.selectNode(childNode);
-            newRange.setStart(childNode.childNodes[0], caretIndexInCurrentNode);
-            newRange.collapse(true);
+            caretMagic(childNode, caretIndexInCurrentNode);
 
-            selectedText.removeAllRanges();
-            selectedText.addRange(newRange);
-            nodeTextEl.focus();
             return;
         }
     }
+}
+
+function caretMagic(node, caretIndex) {
+    let selectedText = window.getSelection();
+    let newRange = document.createRange();
+
+    newRange.selectNode(node);
+    newRange.setStart(node.childNodes[0], caretIndex);
+    newRange.collapse(true);
+
+    selectedText.removeAllRanges();
+    selectedText.addRange(newRange);
+    node.parentNode.focus();
 }
 
 //gets the caret position as amount of characters in #nodeText
@@ -728,7 +746,6 @@ function getCaretPosAbsolute() {
         caretPosition = document.getElementById("nodeText").innerText.indexOf("\0");
         tempnode.parentNode.removeChild(tempnode);
     }
-    //console.log(caretPosition);
     return caretPosition;
 }
 
