@@ -644,19 +644,85 @@ function drawEditor() {
             // save any changes 
             scrollToHalf();
             
-            CURRENTNODE.data.lastPos = getCaretPosAbsolute();
-            //console.log("current caret pos = " + CURRENTNODE.data.lastPos);
+            CURRENTNODE.data.lastPos = getCaretIndex();
 
             dosave();
         });
 
 
-    // this is flakey :/ -- should work now :)
-    // console.log("scrolling To", CURRENTNODE.data.lastPos )
+    // this is flakey :/ -- it works now :)
     if (CURRENTNODE.data.lastPos > 0) {
-        setCaretToLastPos();
+        setCaretIndex(CURRENTNODE.data.lastPos);
+
         scrollToHalf();
     }
+}
+
+//CARET MAGIC courtesy of https://stackoverflow.com/questions/64618729/how-do-you-get-and-set-the-caret-position-in-a-contenteditable
+
+function getCaretIndex() {
+    var index = 0;
+    var selection = window.getSelection();
+    var contentEditable = document.getElementById("nodeText");
+    var textNodes = textNodesUnder(contentEditable);
+
+    for(var i = 0; i < textNodes.length; i++) {
+        var node = textNodes[i];
+        var isSelectedNode = node === selection.focusNode;
+
+        if(isSelectedNode) {
+            index += selection.focusOffset;
+            break;
+        }
+        else {
+            index += node.textContent.length;
+        }
+    }
+
+    return index;
+}
+
+function setCaretIndex(newCaretIndex) {
+    var cumulativeIndex = 0;
+    var relativeIndex = 0;
+    var targetNode = null;
+    var contentEditable = document.getElementById("nodeText");
+
+    var textNodes = textNodesUnder(contentEditable);
+
+    for(var i = 0; i < textNodes.length; i++) {
+        var node = textNodes[i];
+        
+        if(newCaretIndex <= cumulativeIndex + node.textContent.length) {
+            targetNode = node;
+            relativeIndex = newCaretIndex - cumulativeIndex;
+            break;
+        }
+
+        cumulativeIndex += node.textContent.length;
+    }
+
+    var range = document.createRange();
+    range.setStart(targetNode, relativeIndex);
+    range.setEnd(targetNode, relativeIndex);
+    range.collapse();
+
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+}
+
+function textNodesUnder(node) { // https://stackoverflow.com/a/10730777/3245937
+    var all = [];
+    for (node=node.firstChild;node;node=node.nextSibling){
+        if (node.nodeType==3) {
+            all.push(node);
+        }
+        else {
+            all = all.concat(textNodesUnder(node));
+        }
+    }
+    return all;
 }
 
 function scrollToHalf() {
@@ -667,86 +733,6 @@ function scrollToHalf() {
         fix = caret - halfway;
         $("#nodeText").parent().scrollTop($("#nodeText").parent().scrollTop() + fix);
     }
-}
-
-function setCaretToLastPos() {
-    let nodeTextEl = document.getElementById("nodeText");
-
-    // console.log("--------------------------------\n called setCaretToLastPos()\n" +
-    //             "CURRENTNODE.data.lastPos = " + CURRENTNODE.data.lastPos,
-    //             "nodeTextEl.innerText.length = " + nodeTextEl.innerText.length,
-    //             "#nodeText:", nodeTextEl,
-    //             "-------------------------------");
-
-    if (CURRENTNODE.data.lastPos > nodeTextEl.innerText.length){
-        const lastNodeIndex = nodeTextEl.childNodes.length - 1;
-        caretMagic(nodeTextEl.childNodes[lastNodeIndex], nodeTextEl.childNodes[lastNodeIndex].innerText.length);
-        return;
-    }
-
-    let caretIndexInCurrentNode = CURRENTNODE.data.lastPos;
-    let childNodeIndex = -1;
-
-    // normalize this and all sub-nodes to get rid of any potential node weirdness
-    nodeTextEl.normalize();
-    //console.log(nodeTextEl);
-
-    // iterate over sub-nodes until we find the one that contains the caret position
-    for (let childNode of nodeTextEl.childNodes) {
-        childNodeIndex = childNodeIndex + 1;
-
-        // skip if it's a TextNode, we need a <p> node here
-        if (childNode.nodeType === 3) {
-            continue;
-        }
-
-        // caret position is not found inside this node, so we keep looking
-        if (caretIndexInCurrentNode >= childNode.innerText.length) {
-            // this is to get from the absolute caret position we saved previously to the caret position relative to the containing <p> node
-            caretIndexInCurrentNode = caretIndexInCurrentNode - (childNode.innerText.length + 2);
-        }
-        // set the caret to the calculated position inside this node
-        else {
-            //if the paragraph ends with a space or newline character weird things happen and we get a negative caretIndex
-            //in that case we've already gone a <p> node too far and need to go back to the previous node
-            if (caretIndexInCurrentNode < 0) {
-                childNode = nodeTextEl.childNodes[childNodeIndex - 2]; //-2 because of the empty text nodes in-between
-                caretIndexInCurrentNode = childNode.innerText.length;
-            }
-
-            caretMagic(childNode, caretIndexInCurrentNode);
-
-            return;
-        }
-    }
-}
-
-function caretMagic(node, caretIndex) {
-    let selectedText = window.getSelection();
-    let newRange = document.createRange();
-
-    newRange.selectNode(node);
-    newRange.setStart(node.childNodes[0], caretIndex);
-    newRange.collapse(true);
-
-    selectedText.removeAllRanges();
-    selectedText.addRange(newRange);
-    node.parentNode.focus();
-}
-
-//gets the caret position as amount of characters in #nodeText
-function getCaretPosAbsolute() {
-    let _range = document.getSelection().getRangeAt(0);
-    let range = _range.cloneRange();
-    let caretPosition = null;
-
-    if (range.collapsed) {
-        const tempnode = document.createTextNode("\0");
-        range.insertNode(tempnode);
-        caretPosition = document.getElementById("nodeText").innerText.indexOf("\0");
-        tempnode.parentNode.removeChild(tempnode);
-    }
-    return caretPosition;
 }
 
 function dosave() {
