@@ -1,11 +1,10 @@
-# The Wavemaker Cards Official Github Repo
+# Wavemaker Spork - A Fork of Wavemaker Cards V3
 
-### What's going on here then?!
+### Ok, but why?
 
-Ok first off don't get all excited about the version 4 folder just yet! It's incredibly unstable and won't work for you just yet, version 2 and 3 are fine to use from this location (may actually decide to serve them from here long term as it allows for better update control)
+This is a personal project to customize Wavemaker for my own needs.
 
+I have been writing in Wavemaker V3 for many years. However, I don't need most of the tools it offers and a couple things I wanted were missing.
+So here I am sticking my fingers into the gears and making my own thing to run locally :)
 
-
-So you just have to visit  https://wavemakercards.github.io to be able  to access the running versions
-
-I am currently working on version 4 which is built using Vue - and will include Electron standalone installers - this is in the /dev folder (ignore the v4dev one - I need to kill that)
+Go to  https://wavemakercards.github.io for the official version or https://github.com/wavemakercards/wavemakercards.github.io for the code.
